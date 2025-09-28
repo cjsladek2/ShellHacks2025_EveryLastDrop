@@ -165,7 +165,9 @@ def quiz_popup(level: int, screen, FONT, BUTTON_FONT):
             correct = question["is_true"] == result
             status = "Correct!" if correct else "Incorrect!"
             color = (40,150,90) if correct else (215,83,79)
-            screen.blit(FONT.render(status, True, color), (popup_rect.x+20, popup_rect.y+30))
+            status_text = FONT.render(status, True, color)
+            status_rect = status_text.get_rect(center=(popup_rect.centerx, popup_rect.y + 40))
+            screen.blit(status_text, status_rect)
 
             # --- Explanation ---
             wrapped = []
@@ -178,8 +180,9 @@ def quiz_popup(level: int, screen, FONT, BUTTON_FONT):
                     wrapped.append(line); line = w+" "
             wrapped.append(line)
             for i, ln in enumerate(wrapped):
-                text = FONT.render(ln.strip(), True, (30,30,30))
-                screen.blit(text, (popup_rect.x+20, popup_rect.y+80+i*28))
+                text = FONT.render(ln.strip(), True, (30, 30, 30))
+                text_rect = text.get_rect(center=(popup_rect.centerx, popup_rect.y + 80 + i * 28))
+                screen.blit(text, text_rect)
 
             # --- Exit button ---
             exit_btn = pygame.Rect(popup_rect.centerx-70, popup_rect.bottom-80, 140, 50)
@@ -274,7 +277,7 @@ class ChatUI:
              "Tell me about the best grass species to build a healthy, ecofriendly, drought-tolerant lawn"),
 
             ("Native Landscaping",
-             "Tell me about alternatives to grass — what else can I do with my lawn, such as native plants?"),
+             "Tell me about alternatives to grass -- what else can I do with my lawn, such as native plants?"),
         ]
 
         self.button_height = 36
@@ -1033,13 +1036,13 @@ def apply_next_month(state: GameState):
 
     # ----- AQUIFER DEPLETION FROM WATERING -----
     if state.lawn.last_watering == "Light Frequent":
-        state.aquifer.level = clamp(state.aquifer.level - 15, 0, 100)
+        state.aquifer.level = clamp(state.aquifer.level - 9, 0, 100)
     elif state.lawn.last_watering == "Light Infrequent":
-        state.aquifer.level = clamp(state.aquifer.level - 5, 0, 100)
+        state.aquifer.level = clamp(state.aquifer.level - 2, 0, 100)
     elif state.lawn.last_watering == "Heavy Frequent":
-        state.aquifer.level = clamp(state.aquifer.level - 30, 0, 100)
+        state.aquifer.level = clamp(state.aquifer.level - 12, 0, 100)
     elif state.lawn.last_watering == "Heavy Infrequent":
-        state.aquifer.level = clamp(state.aquifer.level - 10, 0, 100)
+        state.aquifer.level = clamp(state.aquifer.level - 4, 0, 100)
 
     mult = calculate_multiplier(state)
     state.lawn.health = clamp(state.lawn.health * mult, 0, 100)
@@ -1056,20 +1059,13 @@ def apply_next_month(state: GameState):
     state.lawn.root_depth = max(1, min(20, state.lawn.root_depth + root_change))
 
     # Check failure condition
-    if state.lawn.root_depth <= 1:
+    if state.lawn.root_depth <= 1 or state.lawn.health <= 40 or state.aquifer.level <= 0:
         state.is_failing = True
         state.fail_start_ms = pygame.time.get_ticks()
         state.in_game_over = True
         state.in_game_won = False
         return
     # -----------------------------
-
-    if state.lawn.health <= 40:
-        state.is_failing = True
-        state.fail_start_ms = pygame.time.get_ticks()
-        state.in_game_over = True
-        state.in_game_won = False
-        return
 
     if state.month_count > 12:
         state.in_game_won = True
@@ -1127,7 +1123,7 @@ class WaterWisePane:
         try:
             house_path = os.path.join(os.path.dirname(__file__), "House.png")
             self.house_img = pygame.image.load(house_path).convert_alpha()
-            scale_w = int(self.lawn_rect.w * 0.55)
+            scale_w = int(self.lawn_rect.w * 0.45)
             scale_h = int(self.house_img.get_height() * (scale_w / self.house_img.get_width()))
             self.house_img = pygame.transform.scale(self.house_img, (scale_w, scale_h))
         except Exception:
@@ -1224,8 +1220,10 @@ class WaterWisePane:
 
         # House
         if self.house_img:
-            x = self.lawn_rect.right - self.house_img.get_width()
-            y = self.lawn_rect.top
+            margin_x = 30  # pushes it left from right edge
+            margin_y = 30  # pushes it down from top edge
+            x = self.lawn_rect.right - self.house_img.get_width() - margin_x
+            y = self.lawn_rect.top + margin_y
             surface.blit(self.house_img, (x, y))
 
         # Panel
@@ -1287,137 +1285,6 @@ class WaterWisePane:
         if quiz_popup(self.state.month_count, screen, FONT, BUTTON_FONT):
             apply_next_month(self.state)
 
-    def draw_root_visualization(self, surface: pygame.Surface, lawn_rect: pygame.Rect, root_depth: int):
-        viz_w, viz_h = 120, 180
-        viz_rect = pygame.Rect(lawn_rect.x + 20, lawn_rect.bottom - viz_h - 20, viz_w, viz_h)
-
-        bg_surf = pygame.Surface(viz_rect.size, pygame.SRCALPHA)
-        bg_surf.fill((0, 0, 0, 110))
-        pygame.draw.rect(bg_surf, (255, 255, 255, 150), bg_surf.get_rect(), width=1, border_radius=8)
-        surface.blit(bg_surf, viz_rect.topleft)
-
-        ground_y = viz_rect.y + 25
-        pygame.draw.line(surface, GREEN, (viz_rect.x, ground_y), (viz_rect.right, ground_y), 3)
-
-        max_depth_px = viz_h - 40
-        root_len = (root_depth / 20.0) * max_depth_px
-
-        if root_len > 0:
-            start_pos = (viz_rect.centerx, ground_y)
-            end_pos = (viz_rect.centerx, ground_y + root_len)
-            pygame.draw.line(surface, (210, 180, 140), start_pos, end_pos, 3)
-            for i in range(1, 4):
-                branch_y = ground_y + (root_len * (i / 3.5))
-                branch_len = root_len * 0.2
-                pygame.draw.line(surface, (210, 180, 140), (start_pos[0], branch_y),
-                                 (start_pos[0] - branch_len, branch_y + 10), 2)
-                pygame.draw.line(surface, (210, 180, 140), (start_pos[0], branch_y),
-                                 (start_pos[0] + branch_len, branch_y + 10), 2)
-
-        label = SMALL_FONT.render(f"Root Depth: {root_depth}", True, WHITE)
-        surface.blit(label, label.get_rect(midtop=viz_rect.midtop).move(0, 5))
-
-    def draw(self, surface: pygame.Surface):
-        # Background
-        draw_vertical_gradient(surface, self.rect, BG_TOP_GAME, BG_BOTTOM_GAME)
-        # Lawn
-        key = health_to_grass_key(self.state.lawn.health)
-        surface.blit(self.lawn_images[key], self.lawn_rect.topleft)
-
-        # House (top-right of lawn)
-        if self.house_img:
-            x = self.lawn_rect.right - self.house_img.get_width()
-            y = self.lawn_rect.top
-            surface.blit(self.house_img, (x, y))
-
-        # Panel
-        pygame.draw.rect(surface, PANEL_BG, self.panel_rect)
-        pygame.draw.rect(surface, PANEL_BORDER, self.panel_rect, width=2)
-        title = GAME_TITLE_FONT.render("LAWN SIMULATOR", True, WHITE)
-        surface.blit(title, (self.panel_rect.x + 20, 16))
-        sub = SMALL_FONT.render(f"Month #{self.state.month_count}   |   Grass: {self.state.lawn.grass.name}", True, WHITE)
-        surface.blit(sub, (self.panel_rect.x + 20, 50))
-
-        # Sliders
-        self.sliders["health"].set_value(self.state.lawn.health)
-        self.sliders["moisture"].set_value(self.state.lawn.moisture)
-        self.sliders["aquifer"].set_value(self.state.aquifer.level)
-        for k in ("health", "moisture", "aquifer"):
-            self.sliders[k].draw(surface, FONT, SMALL_FONT)
-
-        # Toggles & button
-        for t in self.toggles:
-            t.draw(surface, FONT, SMALL_FONT)
-        for b in self.buttons:
-            b.draw(surface, FONT)
-
-        self.draw_root_visualization(surface, self.lawn_rect, self.state.lawn.root_depth)
-
-        # Game over fade (after 3s at <= 40)
-        if self.state.is_failing and not self.state.in_game_over:
-            if pygame.time.get_ticks() - self.state.fail_start_ms >= 3000:
-                self.state.in_game_over = True
-
-        if self.state.in_game_over:
-            game_over_overlay(surface, (FONT, GAME_TITLE_FONT, SMALL_FONT))
-            return "over"
-
-        elif self.state.in_game_won:
-            game_won_overlay(surface, (FONT, GAME_TITLE_FONT, SMALL_FONT))
-            return "won"
-
-        return None
-
-    def handle_event(self, ev: pygame.event.Event):
-        # If game ended (won or lost), allow only R to reset
-        if (self.state.in_game_over or self.state.in_game_won):
-            if ev.type == pygame.KEYDOWN and ev.key == pygame.K_r:
-                self.state = GameState()
-                self.chat.disabled = False #re-enable for next game
-            return  # block all other input
-
-        # Only handle mouse events that occur inside our pane
-        if ev.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-            if not self.rect.collidepoint(pygame.mouse.get_pos()):
-                return
-
-        # Normal gameplay → buttons/toggles are active
-        for b in self.buttons:
-            b.handle_event(ev)
-        for t in self.toggles:
-            t.handle_event(ev)
-
-# ======================================================================
-#                                   MAIN
-# ======================================================================
-# ----------------- SLIDES -----------------
-slides = [
-    {
-        "text": "By the year 2025, regions of Florida including Orange, Osceola, Seminole, Polk, and Lake counties are expected to face a groundwater shortfall of an estimated 96 million gallons of water a day…",
-        "bg": "black", "color": (255, 255, 255)
-    },
-    {
-        "text": "Most of the region's water comes from the Floridian aquifer, a massive geologic formation spanning 100,000 square miles beneath Florida.",
-        "bg": "black", "color": (255, 255, 255)
-    },
-    {
-        "text": "Yet, despite these dire predictions, half of all water taken from the public supply ends up watering private lawns, dumping fresh water into the dirt.",
-        "bg": "aquifer", "color": (255, 255, 255)
-    },
-    {
-        "text": "The more the aquifer drains, the more fragile the ground becomes… Not only can the disappearing fresh water trigger saltwater intrusion and seawater surges inland, but our relentless pumping drains the buoyant contents supporting the limestone caves underneath homes and highways, disrupting a delicate balance",
-        "bg": "black", "color": (255, 255, 255)
-    },
-    {
-        "text": "and resulting in sudden, catastrophic sinkholes that swallow homes and cars whole.",
-        "bg": "black", "color": (255, 255, 255)
-    },
-    {
-        "text": "Your mission: Maintain a healthy lawn while using as little water as possible. If you can keep your lawn alive for one year without draining the aquifer, your mission is a success.",
-        "bg": "sinkhole", "color": (0, 0, 0)
-    },
-]
-
 class ScreenState(Enum):
     INTRO = 1
     GAME = 2
@@ -1459,17 +1326,18 @@ class IntroSlides:
 
             ("black",
              "The more the aquifer drains, the more fragile the ground becomes... Not only can "
-             "the disappearing fresh water trigger saltwater intrusion as seawater surges inland, "
+             "the disappearing fresh water trigger \"saltwater intrusion\" as seawater surges inland, "
              "but our relentless pumping drains the buoyant contents supporting the limestone "
              "caves underneath homes and highways, disrupting a delicate balance",
              (255, 255, 255)),
 
             ("Sinkhole.png",
-             "...and resulting in sudden, catastrophic sinkholes that swallow homes and cars whole.",
+             "...and resulting in sudden, catastrophic sinkholes that swallow up homes and cars whole.",
              (255, 255, 255)),
 
             ("black",
              "Your mission: Maintain a healthy lawn while using as little water as possible. "
+             "Your lawn may fail if its roots are too shallow, its overall lawn health is below 40, or you have drained the whole aquifer."
              "If you can keep your lawn alive for one year without draining the aquifer, "
              "your mission is a success.",
              (255, 255, 255)),  # black text on light background
@@ -1478,13 +1346,13 @@ class IntroSlides:
         self.current_slide = 0
         self.typed_text = ""
         self.char_index = 0
-        self.typing_speed = 5     # frames per character
+        self.typing_speed = 3.5     # frames per character
         self.frame_count = 0
         self.wait_timer = 0
         self.done = False
 
         #skip button stuff
-        self.skip_rect = pygame.Rect(self.W - 140, self.H - 100, 120, 40)
+        self.skip_rect = pygame.Rect(self.W - 140, self.H - 60, 120, 40)
         self.speed_multiplier = 1.0  # normal typing/waiting speed
 
     def update(self):
@@ -1508,11 +1376,11 @@ class IntroSlides:
         else:
             # Finished typing → wait before next slide
             self.wait_timer += self.speed_multiplier
-            if self.wait_timer >= 60:  # ~0.5s
+            if self.wait_timer >= 90:  # ~0.5s
 
                 if self.current_slide >= len(self.slides) - 2:
                     # ✅ For the last TWO slides, wait longer
-                    if self.wait_timer >= 180:  # ~3s
+                    if self.wait_timer >= 210:  # ~3s
                         if self.current_slide == len(self.slides) - 1:
                             # Last slide → end slideshow
                             self.done = True

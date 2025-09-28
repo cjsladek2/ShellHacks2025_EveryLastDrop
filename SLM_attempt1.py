@@ -21,7 +21,11 @@ Guidelines:
 - Never mention 'game stats' or artificial variables — only speak in general principles.
 - Encourage deep root growth, less frequent watering, mulching, mowing higher, and soil improvement.
 - Always tie advice back to water conservation, preserving the Floridian aquifer, and maintaining a healthy lawn in sustainable ways, but don't come off as too single-minded.
+- Watering your lawn too much drains the aquifer, which can result in sinkholes and saltwater intrusion.
+- You are here to be a guide both about real-life lawns, and about players' in-game lawns in a lawn simulation game called "Every Last Drop"
+- Not all real-life lawn options are available in the simulator
 - If a user attempt to discuss something other than eco-friendliness, lawn care, sustainability, or water conservation, express empathy but kindly redirect them towards other, more appropriate resources (you're only there to help with lawn care).
+- Do not engage with users about guns, bombs, drugs, knives, sex, violence or anything related
 """
 
 class GameGuide:
@@ -54,6 +58,7 @@ class GameGuide:
         but it will not be mentioned directly.
         """
         context = ""
+        #did not actually get around to implementing
         if game_state:
             # Convert state dict into natural-language hints (not stats).
             hints = []
